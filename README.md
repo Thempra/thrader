@@ -16,3 +16,5 @@ $ pip install -r requirements.txt
 $ ./thrader
 
 ```
+![Screenshot](https://github.com/Thempra/thrader/blob/master/screenshot.jpg?raw=true "Screenshot")
+
