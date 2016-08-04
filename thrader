@@ -1,0 +1,74 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+
+import numpy as np
+import technical_indicators as tai
+import json
+import threading
+import json
+import requests
+import datetime
+import telebot
+
+
+bot = telebot.TeleBot(token='WRITE_HERE_YOUR_BOT_TOKEN')
+CHATID= WRITE_HERE_YOUR_CHAT_ID 
+
+#Sample currencies
+CURRENCIES=["EURJPY","EURGBP","DAX30","NDX100","USDCHF", "ETHBTC"]
+
+
+DEBUG=False
+
+def loadvalue(currency):
+	url = 'https://backend.simplefx.com/api/CandlesController/GetCandles'
+	payload = {"symbol":currency,"cPeriod":60}
+	headers = {'content-type': 'application/json'}
+
+	response = requests.post(url, data=json.dumps(payload), headers=headers)
+	#print (response.text)
+
+	prices = np.array([])
+
+	for value in response.json():
+		prices= np.append(prices, value["open"])
+
+	lasttime=float(datetime.datetime.now().strftime("%s"))-response.json()[0]['time']
+	if lasttime > 250000:
+		return
+
+	rsi=tai.rsi(prices)
+	bb=tai.bb(prices,20)
+	bbUp=bb[len(bb)-1][0]
+	bbDown=bb[len(bb)-1][2]
+	currentprice=prices[len(prices)-1]
+
+	if rsi[len(rsi)-1] > 73  or rsi[len(rsi)-1] < 27 or DEBUG: 
+		if bbUp < currentprice or bbDown >currentprice:
+			bot.send_message(CHATID, "["+currency+"] \n RSI: "+str(round(rsi[len(rsi)-1],1) ) )
+		else:
+                       	bot.send_message(CHATID, "["+currency+"] \n RSI: "+str(round(rsi[len(rsi)-1],1) )+"\n ===== BOLLINGER BROKEN ===== " +"\n Price: "+str(currentprice)+"\n Bollinger Up: "+str(bbUp)+"\n Bollinger Down: "+str(bbDown))
+
+
+def refreshvalues():
+	for i,currency in enumerate(CURRENCIES):
+			loadvalue(currency)
+	threading.Timer(60, refreshvalues).start()
+
+
+@bot.message_handler(commands=['start', 'help'])
+def send_welcome(message):
+    bot.reply_to(message, "Hi by Gordon Gekko")
+
+@bot.message_handler(func=lambda m: True)
+def echo_all(message):
+    bot.reply_to(message, message.text)
+
+@bot.message_handler(commands=['rsi'])
+def function_name(message):
+    bot.reply_to(message, "Gordon Gekko handler")
+
+
+
+refreshvalues()
+bot.polling()
