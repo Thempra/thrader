@@ -9,33 +9,28 @@ import json
 import requests
 import datetime
 import telebot
-
+from poloniex import Poloniex
+import time
 
 bot = telebot.TeleBot(token='WRITE_HERE_YOUR_BOT_TOKEN')
-CHATID= WRITE_HERE_YOUR_CHAT_ID 
+CHATID= WRITE_HERE_YOUR_CHAT_ID
 
 #Sample currencies
-CURRENCIES=["EURJPY","EURGBP","DAX30","NDX100","USDCHF", "ETHBTC"]
+CURRENCIES=["BTC_ETH","BTC_ZRX","BTC_DASH","BTC_ZEC","BTC_GAS","BTC_BCH","BTC_STR","BTC_XRP","BTC_XEM","BTC_LTC","BTC_XMR","BTC_DOGE","BTC_BCN"]
 
 
 DEBUG=False
 
 def loadvalue(currency):
-	url = 'https://backend.simplefx.com/api/CandlesController/GetCandles'
-	payload = {"symbol":currency,"cPeriod":60}
-	headers = {'content-type': 'application/json'}
+	po = Poloniex(None, None)
 
-	response = requests.post(url, data=json.dumps(payload), headers=headers)
-	#print (response.text)
+	firstprice=int(time.time()-1000000)
+	ticker = po.api_query('returnChartData',{"currencyPair":currency,"start":firstprice,"end":"9999999999","period":"7200"})
 
 	prices = np.array([])
 
-	for value in response.json():
-		prices= np.append(prices, value["open"])
-
-	lasttime=float(datetime.datetime.now().strftime("%s"))-response.json()[0]['time']
-	if lasttime > 250000:
-		return
+	for value in ticker:
+		prices= np.append(prices, value["weightedAverage"])
 
 	rsi=tai.rsi(prices)
 	bb=tai.bb(prices,20)
@@ -43,7 +38,7 @@ def loadvalue(currency):
 	bbDown=bb[len(bb)-1][2]
 	currentprice=prices[len(prices)-1]
 
-	if rsi[len(rsi)-1] > 73  or rsi[len(rsi)-1] < 27 or DEBUG: 
+	if rsi[len(rsi)-1] > 73  or rsi[len(rsi)-1] < 27 or DEBUG:
 		if bbUp < currentprice or bbDown >currentprice:
 			bot.send_message(CHATID, "["+currency+"] \n RSI: "+str(round(rsi[len(rsi)-1],1) ) )
 		else:
@@ -53,7 +48,7 @@ def loadvalue(currency):
 def refreshvalues():
 	for i,currency in enumerate(CURRENCIES):
 			loadvalue(currency)
-	threading.Timer(60, refreshvalues).start()
+	threading.Timer(3600, refreshvalues).start()
 
 
 @bot.message_handler(commands=['start', 'help'])
